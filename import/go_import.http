@@ -1,0 +1,20 @@
+#!/usr/bin/bash
+# go_import.http
+# script shell HR 2005-02-07 d'apres PHD
+
+cd $DB
+
+echo 'http anonyme de GO'
+echo `date`
+# sur pelican 
+BIN='/usr/local/bin'
+
+#urlgo='http://www.godatabase.org/dev/database/archive/daily/'
+#$BIN/wget $urlgo/go_daily-termdb-tables.tar.gz
+#$BIN/wget $urlgo/go_daily-schema-mysql.sql.gz
+
+urlgo='http://archive.godatabase.org/latest-full/'
+$BIN/wget -r -l1 $urlgo
+
+mv $DB/archive.godatabase.org/latest-full/* $DB
+rm -r $DB/archive.godatabase.org/

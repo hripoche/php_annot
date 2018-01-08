@@ -1,0 +1,50 @@
+#!/usr/bin/bash
+
+# all_import
+
+# base gene
+
+echo "base gene"
+
+echo "drop database annot_gene" | mysql
+echo "create database annot_gene" | mysql
+
+export BASE=annot_gene
+export DB=/db/gene
+
+./gene_import.ftp
+
+mysql $BASE < gene_schema.sql
+
+gunzip /db/gene/DATA/*.gz
+gunzip /db/gene/GeneRIF/*.gz
+mysql $BASE < gene_import.sql
+gzip /db/gene/DATA/*
+gzip /db/gene/GeneRIF/*
+
+# base locuslink
+
+echo "base locuslink"
+
+echo "drop database annot_locuslink" | mysql
+echo "create database annot_locuslink" | mysql
+
+export BASE=annot_locuslink
+export DB=/db/locuslink
+
+mysql $BASE < locuslink_schema.sql
+mysql $BASE < locuslink_import.sql
+
+# base go
+
+echo "base go"
+
+echo "drop database annot_go" | mysql -u 'ripoche' -p
+echo "create database annot_go" | mysql -u 'ripoche' -p
+
+export BASE=annot_go
+export DB=/db/gosql
+
+./go_import.http
+# ./go_import.ftp
+./go_import.sh

@@ -1,0 +1,9 @@
+gene2accession	DATA	tax_id	GeneID	status	RNA nucleotide accession.version	RNA nucleotide gi	protein accession.version	protein gi	genomic nucleotide accession.version	genomic nucleotide gi	start position on the genomic accession	end positon on the genomic accession	orientation	
+gene2go	DATA	GeneID	GO ID	Evidence										
+gene2pubmed	DATA	tax_id	GeneID	PubMed ID (PMID)										
+gene2refseq	DATA	tax_id	GeneID	status	RNA nucleotide accession.version	RNA nucleotide gi	protein accession.version	protein gi	genomic nucleotide accession.version	genomic nucleotide gi	start position on the genomic accession	end positon on the genomic accession	orientation	
+gene2unigene	DATA	GeneID	UniGene cluster											
+gene_history	DATA	tax_id	GeneID	Discontinued GeneID	Discontinued Symbol									
+gene_info	DATA	tax_id	GeneID	Symbol	LocusTag	Synonyms	dbXrefs	chromosome	map location	description	type of gene	Symbol from nomenclature authority	Full name from nomenclature authority	Nomenclature status
+generifs_basic	GeneRIF	Tax ID	Gene ID	PubMed ID (PMID) list	last update timestamp	GeneRIF text								
+hiv_interactions	GeneRIF	Tax ID	Gene ID	product accession.version	product name	Interaction short phrase	Second gene of interacting pair (human interactor)	Tax ID	Gene ID	product accession.version	product name	PubMed ID (PMID)	last update timestamp	GeneRIF text

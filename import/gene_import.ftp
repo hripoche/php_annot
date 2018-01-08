@@ -1,0 +1,64 @@
+#!/usr/bin/bash
+# majgene
+# script shell HR 2005-01-31
+## Mise  jour  gene
+## A. Transfert des fichiers
+## -------------------------
+echo 'ftp anonyme NCBI'
+echo `date`
+# sur pelican
+
+cd /db/gene
+mkdir DATA
+mkdir GeneRIF
+mkdir tools
+
+ftp -n -i ftp.ncbi.nlm.nih.gov <<!
+user anonymous ripoche@igr.fr
+bin
+cd /gene/
+pwd
+dir
+get README
+!
+
+cd /db/gene/DATA
+ftp -n -i ftp.ncbi.nlm.nih.gov <<!
+user anonymous ripoche@igr.fr
+bin
+cd /gene/DATA
+pwd
+dir
+get gene2pubmed.gz
+get gene2refseq.gz
+get gene_history.gz
+get gene_info.gz
+get mim2gene
+get gene2unigene
+get gene2accession.gz
+get gene2go.gz
+get gene2sts
+get README
+!
+
+cd /db/gene/GeneRIF
+ftp -n -i ftp.ncbi.nlm.nih.gov <<!
+user anonymous ripoche@igr.fr
+bin
+cd /gene/GeneRIF
+pwd
+dir
+get generifs_basic.gz
+get hiv_interactions.gz
+!
+
+cd /db/gene/tools
+ftp -n -i ftp.ncbi.nlm.nih.gov <<!
+user anonymous ripoche@igr.fr
+bin
+cd /gene/tools
+pwd
+dir
+get taxidToGeneNames.pl
+!
+echo `date`

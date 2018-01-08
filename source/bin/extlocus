@@ -1,0 +1,234 @@
+#!/usr/local/bin/perl
+# extlocus
+# version  19.1.2006
+# correction indexation NM et Gb le 5.1.2006
+
+if ($ARGV[0] eq "") {
+print "syntaxe : extlocus fichier_liste  -col num_colonne [-mode O|1|2]  [-nnmx nbre] 
+                 [-sp H|M|R]
+croisement d'une liste  avec le fichier /db/locuslink/Lkfunc mis a jour chaque semaine sur Entrez_Gene
+
+           -col 1  : Locusid               1 num exact  [1 == defaut]
+           -col 2  : Symbol                1 nom exact
+           -col 3  : NM-xxxx (XM_ NG_)+Gb  1 nom exact
+           -col 4  : NT_xxxx               1 nom exact
+           -col 5  : Unigene               1 nom
+           -col 6  : Accessions            1-n acc
+           -col 7  : Symbole alias
+           -col 8  : Description
+           -col 9  : OMIM                 col 10 : Location
+           -col 11 : HugoId               col 12 : Hugo_Symbol
+           -col 13 : ontologie            col 14 : ontologie id
+           -col 15 : Pubmed               col 16 : XM_xxx
+           -col 17 : NG_xxx               col 18 : SwissProt_Acc
+           -col 19 : Homologene           col 20 : RefSeq_NP
+           -col 21 : Chromosome           col 22 : Start
+           -col 23 : End                  col 24 : Strand
+           -col 25 : GdPath_coordonnees   col 26 : Location2
+           -col 27 : Nbre Exons
+
+           -mod  0     identite [defaut]
+           -mod  1     match mot  (entre separateurs)
+           -mod  2     match string
+
+           -nmx  val   nbre max de lignes trouvees  [defaut = 1]
+           -sp   H|M|R  organismes  Human Mouse Rat [defaut = H]
+           -o    Fileout    [Filein_ann] 
+                       fichiers individuels des genes [defaut = Filein_dir dans repertoire courant] 
+                       (ne pas mettre de / final)
+
+";
+exit;
+}
+
+$LOCUS="/db/locuslink/Lkfunc";
+$File =$ARGV[0];
+$Fileout=$File."_ann";
+$mod=0;
+$sp="H";
+$cl=0;
+$nmx=1;
+
+if($#ARGV >0)  {
+# balayage des arguments --------------------------------------------------
+for ($i=1;$i<=$#ARGV;$i++) {
+if ($ARGV[$i] =~/-col/) {
+$cl=$ARGV[$i+1]-1;
+}
+if ($ARGV[$i] =~/-mod/) {
+$mod=$ARGV[$i+1];
+}
+if ($ARGV[$i] =~/-nmx/) {
+$nnmx=$ARGV[$i+1];
+}
+if ($ARGV[$i] =~/-sp/) {
+$sp=$ARGV[$i+1];
+}
+if ($ARGV[$i] =~/-o/) {
+$Fileout = $ARGV[$i+1];
+}
+} # fin de for
+}# fin de if >0
+
+#  Chargement du fichier LOCUSLINK #############
+$kkl=0;
+if ($sp eq "H") {
+$LOCUS="/db/locuslink/Lkfunc";
+}
+if ($sp eq "M") {
+$LOCUS="/db/locuslink/Lkfuncmm";
+}
+if ($sp eq "R") {
+$LOCUS="/db/locuslink/Lkfuncrn";
+}
+
+open(OUT,">$Fileout");
+open (IN,"$LOCUS");
+while (<IN>) {
+# impression ligne de titre
+if ($kkl == 0) {
+print OUT "#\t",$_;
+}
+chop;
+$line=$_;
+$kkl++;
+@a=split(/\t/,$_);
+$_=$a[$cl];
+s/^ //g;
+s/ $//g;
+$cle=$_;  ## $_ est la valeur de selection
+
+if (($cl == 2) || ($cl == 5)) { # fusion NM XM_ NG_ GB
+@bb=();
+if (($a[2]) && ($a[2] ne "-")) {
+push(@bb,$a[2]);
+}
+if (($a[15]) && ($a[15] ne "-")) {
+push(@bb, $a[15]);
+}
+if (($a[16]) && ($a[16] ne "-")) {
+push(@bb,$a[16]);
+}
+if (($a[5]) && ($a[5] ne "-")) {
+push(@bb,$a[5]);
+}
+$_=join(";",@bb);
+#print "== ",$_,"\n";
+@c=split(/;/,$_);
+for($i=0;$i<=$#c;$i++) {
+$Id{$c[$i]}=$line;
+#print $a[$cl]," ",$line," ",$Id{$c[$i]},"\n";
+#print $i," ",$c[$i],"\n";
+#}
+} # fin de for
+next;  #
+} # fin de cl=2/5
+
+if ($cl == 6) {  # splitte les alias
+@bb=split(/;/,$_);
+for($i=0;$i<=$#bb;$i++) {
+$Id{$bb[$i]}=$line;
+} # fin de for
+next;
+} # fin de if 6
+
+# pour le reste
+$Id{$cle}=$line;
+#print $cl, " ",$a[$cl]," --- ",$cle," --- ",$Id{$cle},"\n";
+#print $a[$cl]," ",$line," ",$Id{$_},"\n";
+
+$line="";
+} # fin de   while
+
+close(IN);
+#print "===",$Id{60},"\n";
+#print "===",$Id{70},"\n";
+
+# recherche dans la liste #########################
+open (IN,"$File");
+# mod == 0  #####################
+if (($mod eq 0) || ($mod eq "")) {
+while (<IN>) {
+chomp;
+$cle=$_;
+if (/^[- ]*$/) {
+print OUT "-\t-\n";
+next;
+}
+# suppression des espaces de la liste si mod=0
+$_=$cle;
+s/ //g;
+$cle=$_;
+if ($Id{$cle}) {
+print  OUT $cle,"\t",$Id{$cle},"\n";
+} # fin de if $_
+else {
+if($cle) {
+print OUT $cle,"\t-\n";
+}
+else {
+print OUT "-\n";
+}
+} # fin de else
+$line="";
+$_="";
+} # fin de while
+} # fin mod 0
+
+# mod > 0  #####################
+if ($mod  > 0)  {
+while (<IN>) {
+#print ;
+chomp;
+$key=$_;
+
+if ($key) {
+$nn=0;
+if ($mod == 1 ) { # mod == 1  ####
+# match mot separe ou fini par un separateur
+foreach $line (values(%Id)) {
+# on decode d abors la ligne complete
+@a=split(/\t/,$line);
+# puis on decode la colonne donnee par $cl
+@aa=split(/[ ,;]/,$a[$cl]);
+#print join(" ",@aa),"\n";
+for ($aai=0;$aai<=$#aa;$aai++) {
+if ($key eq $aa[$aai]) {
+$nn++;
+if ($nn <= $nnmx) {
+print OUT  $key,"\t",$line,"\n";
+}
+} # fin de if //
+} # fin de for aai
+} # fin de foreach
+} # fin de mot
+
+if ($mod == 2 ) { # mod == 2  ###
+# match  string
+foreach $line (keys(%Id)) {
+@a=split(/\t/,$line);
+# puis on decode la colonne donnee par $cl
+$_=$a[$cl];
+if (/$key/) {
+$nn++;
+if ($nn <= $nnmx) {
+print  OUT $key,"\t",$line,"\n";
+}
+} # fin de if //
+} # fin de foreach
+} # fin e mot
+
+if ($nn eq 0) {
+print OUT $key,"  #### \n";
+}
+} # fin de if ($key)
+else {
+print OUT $key,"  === \n";
+} # fin de else
+$line ="";
+} # fin de while
+} # fin mod > 0
+close(IN);
+
+close(OUT);
+## reduction

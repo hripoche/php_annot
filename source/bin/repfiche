@@ -1,0 +1,676 @@
+#!/usr/local/bin/perl
+# script repfiche
+# version 1.3  19.1.2006  PHD
+# version modifiee 26.4.2005 pour adapter souris
+if ($#ARGV < 0) {
+print "repfiche : script generant un tableau d annotation xxx_ann et 
+       optionnellement (-html) des fichiers html de liens de genes
+       a partir d'une liste de symboles ou de locusid  \n";
+print "       sur des listes de genes (symboles ou locusid) humain ou souris.\n";
+print "usage : repfiche fichier_liste  -sp H|M  -t 0|1 [-noh]
+       fichier liste : liste de symboles ou de locusid
+       -sp H|M   human | mouse      [defaut = H]
+       -t 0|1    symbole|locusid    [defaut = symbole]
+       -html     generation des fichiers html 
+                 [defaut = seulement le tableau annote]
+       -dir repertoire  pour les resultats [defaut .]
+
+       \n"; 
+print  "ex: repfiche testhss  -sp H -t 0 -html  
+         creation d'un ensemble de fichiers html + ann dans le repertoire testhss_dir
+    repfiche a -t 1 -sp M -dir toto  -html  
+         creation d'un ensemble de fichiers html + ann dans le repertoire toto 
+         a partir d'une liste de locusid de souris  \n\n";
+print "les fichiers html sont dans un repertoire (ext_dir) avec un fichier index.html\n";
+# scripts utilisés :
+#   gene2html  : generation de page web a partir d'un fichier texte structuré
+#   croise et prtab
+# databases utilisées :
+# /db/locuslink/Lkfunc /db/uniprot/uniproths.annot  HUGO
+exit;
+} # fin help
+ 
+#================================================================================
+$BIN='/usr/local/bio/bin'; # repertoire des executables bio locaux
+$File=$ARGV[0]; # fichier generique des symboles
+$Fileann=$File.'_ann';
+$Dirhtml=$File. '_dir';
+$Dir=".";
+$sp="H";
+$id=0;
+$html="";
+$Verb="";
+# balayage des arguments
+for ($i=1;$i<=$#ARGV;$i++) {
+if ($ARGV[$i] eq  "-sp") {
+$sp=$ARGV[$i+1];
+}
+if ($ARGV[$i] eq "-t") {
+$id=$ARGV[$i+1];
+}
+if ($ARGV[$i] =~ /-html/) {
+$html="Y";
+}
+if ($ARGV[$i] eq "-v") {
+$Verb="Y";
+}
+if ($ARGV[$i] eq "-tmp") {
+$tmp="Y";
+}
+if ($ARGV[$i] eq "-dir") {
+$Dir=$ARGV[$i+1];
+$Dirhtml=$Dir; # le repertoire est nomme 
+if (! -d $Dir) {
+`mkdir $Dir`;
+}
+} # fin de -dir
+} # fin de for
+#if (!$sp) {$sp="H";}
+#if (!$id) {$id="0";}
+
+# HR 20060131 $Fileann=$Dirhtml."/".$Fileann;
+print $Dirhtml,"    ",$Fileann,"\n";
+
+if (!(-d $Dirhtml)) {
+`/usr/bin/mkdir $Dirhtml`;
+}
+
+if ($Verb eq "Y") {
+print "sp  ",$sp," type  ",$id,"\n";
+}
+
+# 1. generation d un tableau a partir d une liste
+# ===============================================
+# generation d un fichier $Fileann
+print " 1. generation de $Fileann\n";
+#  $File  $sp  $id
+&gener_gene1;
+if ($Verb eq "Y") {
+print `/usr/bin/ls -l $File*`,"\n";
+print `/usr/bin/ls -l $Dirhtml"/"$File*`,"\n";
+}
+if ($html eq "Y") {
+# 2. generation des fichiers txt
+# ==============================
+print " 2. generation d'un ensemble de fichier text \n";
+# lecture fichier d annotation $Fileann
+# ecriture ensemble de fichiers .txt
+print `/usr/bin/ls -l $Fileann`;
+&gener_gene2;
+if ($Verb eq "Y") {
+print `/usr/bin/ls -l  $Dirhtml"/"*.txt`,"\n";
+}
+# 3. generation des fichiers html
+# ===============================
+print "3. generation des fichiers html\n";
+# HR 20060131 $tmpsymb='tmp'.$$;
+$tmpsymb='/tmp/tmp'.$$;
+`$BIN/prtab $Fileann 2  > $tmpsymb`;
+@ls=`/usr/bin/cat $tmpsymb`;
+if ($Verb eq "Y") {
+print @ls;
+}
+chop(@ls);
+# repertoire deja cree
+#if (!(-d $Dirhtml)) {
+#`/usr/bin/mkdir $Dirhtml`;
+#}
+@ls0=();
+for ($i=0;$i<=$#ls;$i++) {
+$filb=$ls[$i];
+if ($filb eq "Symbol") { next;}
+if ($filb eq "-") { next;}
+if ($filb eq "na") { next;}
+if ($filb eq "") { next;}
+push (@ls0,$filb);
+}
+@ls=@ls0;
+for ($i=0;$i<=$#ls;$i++) {
+$filb=$ls[$i];
+if ($filb eq "symb") { next;}
+$fil=$Dirhtml."/".$filb .'.txt';
+$filhtml=$Dirhtml."/".$filb. '.html';
+if ($Verb eq "Y") {
+print $i,"  ",$filb, " ",$fil," ",$filhtml,"\n";
+}
+`/$BIN/gene2html $fil 2>&1 >  $filhtml`;
+if ($Verb eq "Y") {
+print `/usr/bin/ls -l  $filhtml`,"\n";
+}
+}
+# 4. Generation d'une page synthetique
+# ====================================
+print "4. generation d une page de synthese\n";
+# HR 20060131 open (OUTH,">./$Dirhtml/index.html");
+open (OUTH,">$Dirhtml/index.html");
+print OUTH " <HTML> <HEAD> <TITLE>Annotated genes</TITLE> </HEAD>\n";
+#    print '<BODY BGCOLOR=FFFFFF>';   # fond blanc
+print OUTH "<FONTCOLOR=#993300><BODY BGCOLOR=#EEEEFF  text=#00004F>";
+print OUTH '<CENTER>Annotated genes</CENTER>';
+print OUTH "<HR><p>\n";
+for ($i=0;$i<=$#ls;$i++) {
+$filb=$ls[$i];
+if ($filb eq "symb") { next;}
+$fil=$Dirhtml."/".$filb .'.txt';
+$filhtml=$Dirhtml."/".$filb. '.html';
+# HR 20060131 print OUTH "<LI><a href=./",$filhtml,">$filb</a>\n";
+print OUTH "<LI><a href=",$filhtml,">$filb</a>\n";
+# HR 20060131 `/usr/bin/rm $fil `;
+}
+print OUTH "</HTML>\n";
+} # fin de nohtml
+print "****   creation d un fichier d annotation   ",$Dirhtml,"/",$Fileann,"\t****\n";
+if ($html eq "Y") {
+print "****   creation d un repertoire             ",$Dirhtml,"\t****\n";
+print "liste des fiches au format HTML \n";
+print `/usr/bin/ls -l $Dirhtml/*`,"\n";
+`/usr/bin/rm $tmpsymb`;
+} # fin  html
+# ====================================================================
+# sub gener_gene1
+# generation des fichier de croisement a partir d'une liste de symboles
+# gener_gene1 list  H|M  0|1
+#usage : gener_gene1   list    H|M   0|1 \n";
+#list   : liste de symbols (defaut)
+#H|M   homme (defaut) |souris 
+#0|1   symbol (defaut) | locusid  \n";
+sub gener_gene1 {
+#$File=$ARGV[0];
+#$sp=$ARGV[1];
+#$id=$ARGV[2];
+#print "gener_gene1 ",$File," ",$sp," ",$id,"\n";
+$Filel=$File."_l"; # fichier locusid
+$Filel0=$File."_l0"; # 1er fichier croisement Lkfunc
+$Filesg=$File . "_sg";# File goa uniprot
+$Fileh=$File."_h"; # croisement avec hugo
+$Filehs=$File. "_hs"; # hugo + uniprot
+$Filepw=$File . "_pw";   # fichier pathways
+###$Fileann=$File. "_ann"; # fichier de synthese  deja defini au debut dans le repertoire out
+$xxx=$File."*";
+$title="locusid\tsymb\trefseq_nm\trefseq_nt\tunigene\tgenbank\t";
+$title.="alias_symb\tdescription\tomim\tloc1\tpfam_des\tpfam_id\t";
+$title.="go_des\tgo_id\tpubmed\tt_gdp\tgdpath\tchr2\tstrand\tcoord\t";
+$title.="t_sw\tsw_acc\tsw_id\tsw_gn\tenzyme\tsw_des\tprosite_acc\t";
+$title.="prosite_id\tinterpro_acc\tinterpro_id\tpfam2_acc\tpfam2_des\t";
+$title.="smart_acc\tsmart_des\tprodom_acc\tprodom_id\tpdb\thugo\tgdb\t";
+$title.="-\t-\t-\t-\t-\t-\t-\t";
+$title.="-\tbiocarta\tkegg\tgdp_loc\tpubmed_uniprot\t-\t-\t";
+$title.="-\t-\t-\t-\t-\t-\t-\trefseqnp\tspecies";
+# ---- human -------------------------------------------------
+if ($sp eq "H") {
+if ($id == 0) {
+print "Locus_symbol ",$sp," ",$File,"\n";
+# liste  locussymbol
+`$BIN/croise /db/locuslink/Lkfunc $File  2 1 1 1 >  $Filel0 `;
+`$BIN/prtab $Filel0 3 > $Filel`;       # liste locusid
+##`croise /db/hugo/nomeids2.txt  $Filel 3 1 1 1 > $Fileh`;
+`$BIN/croise /db/hugo/nomeids2.txt  $File 2 1 1 1 > $Fileh`; # plus riche sur le symbol
+# /db/goa/human.xrefs2
+# 2928    GSCL    SP      O15499  IPI00006760
+`$BIN/croise /db/goa/human.xrefs2 $Filel 1 1 1 1 > $Filesg`;
+`perl -pi.bak -ne 's/GDB://'  $Fileh`;
+`$BIN/croise /db/uniprot/uniproths.annot $Fileh 1 7 1 1 > $Filehs`;
+`$BIN/croise /db/cgap/Hs_GeneData2 $Filel 1 1 1 1 > $Filepw `;
+}
+if ($id == 1) {
+# liste  locusid
+print "Locus_id ",$File,"   ",$sp,"\n";
+`$BIN/croise /db/locuslink/Lkfunc $File  1 1 1 1 >  $Filel0 `;
+# /db/goa/human.xrefs2
+# 2928    GSCL    SP      O15499  IPI00006760
+`$BIN/croise /db/goa/human.xrefs2 $File 1 1 1 1 > $Filesg`;
+# generation des locusid avec les symbol
+`$BIN/prtab $Filel0 4 > $Filel`; # liste locussymbol
+`$BIN/croise /db/hugo/nomeids2.txt  $Filel 2 1 1 1 > $Fileh`;
+`perl -pi.bak -ne 's/GDB://'  $Fileh`;
+# croiement sur les accession uniprot
+`$BIN/croise /db/uniprot/uniproths.annot $Fileh 1 7 1 1 > $Filehs`;
+`$BIN/croise /db/cgap/Hs_GeneData2 $File 1 1 1 1 > $Filepw `;
+}
+} # fin de H
+# ---- mouse -------------------------------------------------
+if ($sp eq "M") {
+# mode symbol  =============================================
+if ($id == 0) {
+# liste  symbol
+print "Symbol ",$File," ",$sp,"\n";
+`$BIN/croise /db/locuslink/Lkfunc_mm $File  2 1 1 1 >  $Filel0 `;
+`$BIN/prtab $Filel0 3 > $Filel`; # liste locusid
+`$BIN/croise /db/uniprot/uniprotmm.annot $File 3 1 1 1 > $Filehs`;
+`$BIN/croise /db/cgap/Mm_GeneData2 $Filel 1 1 1 1 > $Filepw `;
+print `/usr/bin/ls -l $Filel0`;
+}
+# mode locus_id  =============================================
+if ($id == 1) {
+# liste  locusid
+print "Locus_id ",$File,"   ",$sp,"\n";
+`$BIN/croise /db/locuslink/Lkfunc_mm $File  1 1 1 1 >  $Filel0 `;
+`$BIN/croise /db/uniprot/uniprotmm.annot $Filel 3 1 1 1 > $Filehs`;
+`$BIN/croise /db/cgap/Mm_GeneData2 $File 1 1 1 1 > $Filepw `;
+}
+} # fin de M
+#------------------------------------------------------------
+open(IN,"$Filel0");
+@F1=<IN>;
+close(IN);
+open(IN,"$Filehs");
+@F2=<IN>;
+close(IN);
+open(IN,"$Filepw");
+@F3=<IN>;
+close(IN);
+chomp(@F1);
+chomp(@F2);
+chomp(@F3);
+@FF=();
+open(OUT,">$Fileann");
+print OUT $title,"\n";
+for ($k=0;$k<=$#F1;$k++) {
+@f1=split("\t",$F1[$k]);
+@f2=split("\t",$F2[$k]);
+@f3=split("\t",$F3[$k]);
+# initiatlisation
+for ($j=0;$j<=61;$j++) {  
+$FF[$j]="-";
+} # next j
+# de 0 a 14 
+for ($j=2;$j<=16;$j++) {  # de 0 a 14 locusid -> pubmed
+$FF[$j-2]=$f1[$j];
+} # next j
+$FF[16]=$f1[26];  # chr2:16032644-16037721 +
+if ($FF[16] ne "-") {
+$FF[15]="=";  # = si data genomique
+$_=$FF[16];
+($chr2)=/chr(\S+):/;
+$FF[17]=$chr2; # data genomique
+$FF[18]=$f1[25];# strand
+$FF[19]=$f1[23];# coord
+$FF[49]=$f1[27];# gdp-loc
+$FF[60]=$f1[21];# NP
+}
+else {
+$FF[15]="-";
+}
+if ($sp eq "H") {
+for ($j=7;$j<=23;$j++) {  # copie de hs : de = a PDB
+$FF[$j+13]=$f2[$j];  # $FF de 20 a 36
+} # next j
+$FF[37]=$f2[3]; # hugo
+$FF[38]=$f2[5]; # gdb
+$FF[50]=$f2[24]; # biblio sw
+$FF[61] ="Hs";
+} # fin de H
+if ($sp eq "M") {
+for ($j=1;$j<=17;$j++) {
+$FF[$j+19]=$f2[$j];
+} # next j
+$FF[37]="-"; # hugo
+$FF[38]="-"; # gdb
+$FF[50]=$f2[18]; # biblio sw
+$FF[61] ="Mm";
+} # fin de M
+$FF[47]=$f3[16]; # biocarta
+$FF[48]=$f3[17]; # kegg
+#print  join("\t",@FF),"\n";
+print OUT join("\t",@FF),"\n";
+} # fin de for k
+close(OUT);
+print " Fichier annotation   ",`/usr/bin/ls -l $Fileann`,"\n";
+#------------------------------------------------------------
+`/usr/bin/rm *.bak  $File0`;
+`ls -l $xxx`;
+if ($tmp eq "") {
+`/usr/bin/rm  $Filesg`;
+`/usr/bin/rm  $Fileh`;
+`/usr/bin/rm  $Filehs`;
+`/usr/bin/rm  $Filel0`;
+`/usr/bin/rm  $Filel`;
+`/usr/bin/rm  $Filepw`;
+}
+} # fin de sub
+# -------------------------------------------------------------
+# gener_gene2  fichier_ann   prefixe
+# version corrigee le 4.10.2003
+## version modifiee le 5.6.2004
+# version maj 24.8.2004 hg17
+## addition bande calculée loc
+# le fichier genes est un fichier tabulé avec le format imposé
+# sur les colonnes
+## pour supprimer les fichiers Atlas
+## a[44] = "A"
+sub gener_gene2 {
+$pref="";  # prefixe pour les fichiers de sortie
+#$Fileann=$ARGV[0];
+open(IN,$Fileann);
+while(<IN>) {
+chop;
+s/\"//g;
+@a=split(/\t/,$_);
+if ($a[0] eq "locusid") { next;}
+#   0 locusid
+#   1 symb
+#   2 RefSeq_nm
+#   3 refseq_nt
+#   4 unigene
+#   5 genbank
+#   6 alias_symb
+#   7 description
+#   8 omim
+#   9 loc
+#   10 pfam_des
+#   11 pfam_id
+#   12 go_des
+#   13 go_id
+#   14 pubmed
+#
+#   15 t_gdp
+#   16 gdpath
+#   17 chr2
+#   18 strand
+#   19 coord
+#
+#   20 t_sw
+#   21 sw_acc
+#   22 sw_id
+#   23 sw_gn
+#   24 enzyme
+#   25 sw_des
+#   26 prosite_acc
+#   27 prosite_id
+#   28 interpro_acc
+#   29 interpro_id
+#   30 pfam2_acc
+#   31 pfam2_des
+#   32 smart_acc
+#   33 smart_des
+#   34 prodom_acc
+#   35 prodom_id
+#   36 pdb
+#
+#   37 hugo
+#   38 gdb
+#   39 hgmd
+#   40 date
+#   41 t_cg
+#   42 cg_id
+#   43 cg_symb
+#   44 t_atlas
+#   45 atlas_fname
+#   46 atlas_disp
+#   47 biocarta
+#   48 Kegg
+#   49 gdp_loc
+#   50 pubmed swissprot
+#   60 NP_xxx
+#   61 species
+## genere header
+if (($a[1] eq "-") || ($a[1] eq "-")) {
+next;
+}
+# creation du fichier dans le repertoire out
+$File=$Dirhtml."/".$pref . $a[1] .".txt";
+print $File,"\n";
+open (OUT,">$File");
+print OUT "BEGIN_HEADER\n";
+print OUT "FILENAME            ",$pref,$a[1],".txt\n";
+print OUT "CLASSE              GENE\n";
+print OUT "ID                  ",$pref,$a[0],"\n";
+$chr="";
+$_=$a[9];
+if (/[pq]/) {
+if(/^X/) {
+$chr="X";
+}
+if(/^Y/) {
+$chr="Y";
+}
+if(/^\d/) {
+($chr)=/(\d+)/;
+}
+}
+else {
+$chr=$_;
+}
+#print $a[9],"  -- ",$chr,"\n";
+print OUT "TRI_PAR_CHROMOSOME  ",$chr,"\n";
+print OUT "COORDONNEE          ",$a[19],"\n";
+print OUT "STATUS              PRELIMINARY\n";
+print OUT "END_HEADER\n\n";
+print OUT "BEGIN_AUTHOR\n";
+print OUT "CREATED             DATE  05-2005  AUTHORS Dessen P.\n";
+print OUT "END_AUTHOR\n\n";
+print OUT "BEGIN_IDENTITY_GENE\n";
+print OUT "DISPNAME            ",$a[1]," (",$a[7],")\n";
+## alias
+@alias=split(/;/,$a[6]);
+for ($i=0;$i<=$#alias;$i++) {
+print OUT "ALIAS               ",$alias[$i],"\n";
+}
+if (($a[49] eq "")||($a[49] eq "-")) {
+# notinh
+}
+else{
+$a[9]=$a[49];
+}
+if ($a[9] eq "") {
+$a[9]="-";
+}
+print OUT "HUGO                ",$a[11],"\n";
+print OUT "LOCATION            ",$a[9],"\n";
+print OUT "END_IDENTITY_GENE\n\n";
+print OUT "BEGIN_EXTERNAL_LINKS\n";
+print OUT "SPECIES             ",$a[61],"\n";
+if ($a[61] eq "Hs") {
+print OUT "HUGO                ",$a[11],"\n"; ## le vrai HGNC
+print OUT "CHROM_COORD         ",$a[16]," ",$a[9]," hg17-May_2004\n";
+print OUT "GENECARD            ",$a[1],"\n";
+print OUT "GDBID               ",$a[1],"\n";
+}
+if ($a[61] eq "Mm") {
+print OUT "CHROM_COORD         ",$a[16]," ",$a[9]," mm5-May_2004\n";
+}
+print OUT "LOCUSLINK           ",$a[1]," ",$a[0]," ",$a[7],"\n";
+## genbank
+$_=$a[5];
+s/;/ /g;
+s/ m/ /g;
+s/ g/ /g;
+s/  / /g;
+$kg=0;
+@genb=split(/\s+/,$_);
+for ($i=0;$i<=$#genb;$i++) {
+if($genb[$i] ne "") {
+$_=$genb[$i];
+if ((/p/) || (/none/)) {
+next;
+}
+$_=$genb[$i];
+s/\.[0-9]$//;
+print OUT "GENBANK             ",$_,"\n";
+$kg++;
+if ($kg>=5 ) { 
+last;
+}
+} # fin de if
+} # fin de for
+## refseq_nm
+@refnm=split(/;/,$a[2]);
+for ($kn=0;$kn<=$#refnm;$kn++) {
+$_=$refnm[$kn];
+s/\.[0-9]$//;
+if(/NM_/) {
+print OUT "REFSEQ              ",$_,"\n";
+}
+}
+## refseq_np
+@refnp=split(/;/,$a[60]);
+for ($kn=0;$kn<=$#refnp;$kn++) {
+$_=$refnp[$kn];
+s/\.[0-9]$//;
+if(/NP_/) {
+print OUT "REFSEQP             ",$_,"\n";
+}
+} # fin de for 
+## refseq_nt
+@refnt=split(/\s+/,$a[3]);
+$_=$refnt[0];
+s/\.[0-9]$//;
+if(/NT_/) {
+print OUT "REFSEQ              ",$_,"\n";
+}
+## unigene
+if ($a[4] =~/Hs/) {
+print OUT "UNIGENE             ",$a[4],"\n";
+}
+if ($a[4] =~/Mm/) {
+print OUT "UNIGENE             ",$a[4],"\n";
+}
+#
+## omim
+if (($a[8] ne "-") && ($a[8] ne "")) {
+print OUT "OMIM                ",$a[8],"\n";
+}
+## hgmd
+if (($a[39] ne "-") && ($a[39] ne "")) {
+print OUT "HGMD                ",$a[39],"\n";
+}
+# swissprot
+#if (($a[17] ne "-") && ($a[17] ne "")) {
+#print OUT "SWISSPROT              ",$a[17],"\n";
+#}# fin swissprot
+## traitement proteine
+#   20 t_sw
+#   21 sw_acc
+#   22 sw_id
+#   23 sw_gn
+#   24 enzyme
+#   25 sw_des
+#   26 prosite_acc
+#   27 prosite_id
+#   28 interpro_acc
+#   29 interpro_id
+#   30 pfam2_acc
+#   31 pfam2_des
+#   32 smart_acc
+#   33 smart_des
+#   34 prodom_acc
+#   35 prodom_id
+#   36 pdb
+#   50 pubmed swiss
+#   60 NP_
+##   protein
+if ($a[20] eq "=")  {
+## swissprot
+if (($a[21] ne "-") && ($a[21] ne "")) {
+print OUT "SWISSPROT           ",$a[21]," ",$a[22],"\n";
+}
+## enzyme
+if (($a[24] ne "-") && ($a[24] ne "")) {
+print OUT "ENZYME              ",$a[24],"\n";
+}
+## prosite
+if (($a[26] ne "-") && ($a[26] ne "")) {
+@pro1,@pro2=();
+@pro1=split(/;/,$a[26]);
+@pro2=split(/;/,$a[27]);
+for ($i=0;$i<=$#pro1;$i++) {
+print OUT "PROSITE             ",$pro1[$i]," ",$pro2[$i],"\n";
+}
+}
+## interpro
+if (($a[28] ne "-") && ($a[28] ne "")) {
+@int1,@int2=();
+@int1=split(/;/,$a[28]);
+@int2=split(/;/,$a[29]);
+for ($i=0;$i<=$#int1;$i++) {
+print OUT "INTERPRO            ",$int1[$i]," ",$int2[$i],"\n";
+}
+}
+## pfam
+if (($a[30] ne "-") && ($a[30] ne "")) {
+@pfa1,@pfa2=();
+@pfa1=split(/;/,$a[30]);
+@pfa2=split(/;/,$a[31]);
+for ($i=0;$i<=$#pfa1;$i++) {
+print OUT "PFAM                ",$pfa1[$i]," ",$pfa2[$i],"\n";
+}
+}
+## smart
+if (($a[32] ne "-") && ($a[32] ne "")) {
+@sma1,@sma2=();
+@sma1=split(/;/,$a[32]);
+@sma2=split(/;/,$a[33]);
+for ($i=0;$i<=$#sma1;$i++) {
+print OUT "SMART               ",$sma1[$i]," ",$sma2[$i],"\n";
+}
+}
+## prodom
+if (($a[34] ne "-") && ($a[34] ne "")) {
+@prd1,@prd2=();
+@prd1=split(/;/,$a[34]);
+@prd2=split(/;/,$a[35]);
+for ($i=0;$i<=$#prd1;$i++) {
+print OUT "PRODOM              ",$prd1[i]," ",$prd2[$i],"\n";
+}
+}
+## pdb
+if (($a[36] ne "-") && ($a[36] ne "")) {
+@pdb=();
+@pdb=split(/;/,$a[36]);
+for ($i=0;$i<=$#pdb;$i++) {
+print OUT "PDB                 ",$pdb[$i],"\n";
+}
+}
+} # fin de if swiss
+print OUT "ORPHANET\n";
+print OUT "REGISTRY\n";
+print OUT "ASSOCIATIONS\n";
+print OUT "PROBES\n";
+print OUT "DATABASES\n";
+# go
+if (($a[12] ne "-") && ($a[12] ne "")) {
+@go,@godes=();
+@godes=split(/;/,$a[12]);
+@go=split(/;/,$a[13]);
+for ($i=0;$i<=$#go;$i++) {
+print OUT "GO                  ",$go[$i], " ",$godes[$i],"\n";
+}
+}
+# biocarta
+if (($a[47] ne "-") && ($a[47] ne "")) {
+@bioc=();
+@bioc=split(/;/,$a[47]);
+for ($i=0;$i<=$#bioc;$i++) {
+print OUT "BIOCARTA                  ",$bioc[$i],"\n";
+}
+} # fin de if
+# kegg
+if (($a[48] ne "-") && ($a[48] ne "")) {
+@bioc=();
+@bioc=split(/;/,$a[48]);
+for ($i=0;$i<=$#bioc;$i++) {
+print OUT "KEGG                  ",$bioc[$i],"\n";
+}
+} # fin de if
+# pubmed
+if (($a[14] ne "-") && ($a[14] ne "")) {
+@pubm=split(/;/,$a[14]);
+for ($i=0;$i<=$#pubm;$i++) {
+print OUT "PUBMED              ",$pubm[$i],"\n"; 
+}
+}# fin pubmed
+# pubmed swissprot
+if (($a[50] ne "-") && ($a[50] ne "")) {
+@pubm=split(/;/,$a[50]);
+for ($i=0;$i<=$#pubm;$i++) {
+print OUT "PUBMEDSP            ",$pubm[$i],"\n";
+}
+}# fin pubmed
+print OUT "NOTE \n";
+print OUT "END_EXTERNAL_LINKS\n\n";
+print OUT "///\n";
+close(OUT);
+} # fin de while
+close(IN); # fin de lecture de gens_gc
+}  # fin de sub
+#  ----- fin de script ----------------------------------

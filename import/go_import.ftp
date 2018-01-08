@@ -1,0 +1,20 @@
+#!/usr/bin/bash
+# majgo
+# script shell HR 2005-01-31
+## Mise  jour  GO
+## A. Transfert des fichiers
+## -------------------------
+echo 'ftp anonyme'
+echo `date`
+# sur pelican
+
+cd /db/gosql
+
+ftp -n -i ftp.godatabase.org <<!
+user anonymous ripoche@igr.fr
+bin
+cd /godatabase/archive/latest-full/
+pwd
+dir
+mget *
+!
